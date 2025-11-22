@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDX Macro Cost Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e2e8f0;
+            min-height: 100vh;
+            background-color: #0f172a;
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        /* Scrollbar custom */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.85);
+            backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background-color: #1e293b;
+            margin: 5% auto;
+            padding: 24px;
+            border: 1px solid #334155;
+            width: 95%;
+            max-width: 800px; 
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-slate-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                    TDX Macro Cost Tool
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Auto-fill costs for Tower Defense X macros</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex gap-3">
+                <button onclick="openExampleModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-semibold transition shadow-lg shadow-indigo-900/50 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Example Syntax
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            
+            <!-- Input Section -->
+            <div class="glass-panel p-6 rounded-2xl shadow-xl flex flex-col h-[calc(100vh-200px)] min-h-[600px]">
+                <h2 class="text-xl font-semibold mb-4 text-cyan-400 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    Input Macro
+                </h2>
+                
+                <div class="mb-4 p-3 bg-slate-800/50 rounded-lg border border-yellow-500/30 flex justify-between items-center">
+                    <div>
+                        <span class="text-yellow-400 font-bold text-sm uppercase tracking-wider">Golden Perks</span>
+                        <p class="text-xs text-slate-400">Treat standard towers as Golden variants</p>
+                    </div>
+                    <button onclick="openGoldenPerkModal()" class="px-3 py-1.5 bg-yellow-600/80 hover:bg-yellow-500 rounded text-xs font-bold text-white transition">
+                        Select Loadout
+                    </button>
+                </div>
+
+                <textarea id="inputCode" class="flex-1 w-full p-4 rounded-xl bg-slate-900/80 border border-slate-700 text-cyan-100 font-mono text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none resize-none" 
+                placeholder='place(0, "Ranger", Vector3.new(10, 5, 10), 0, cost)
+upgrade(1, 1, 1, cost) -- Upgrade Tower 1, Top Path
+upgrade(1, 2, 1, cost) -- Upgrade Tower 1, Bottom Path'></textarea>
+
+                <button id="processButton" class="mt-4 w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl text-white font-bold text-lg shadow-lg shadow-cyan-900/50 transition transform active:scale-[0.99]">
+                    ⚡ Process & Fill Costs
+                </button>
+            </div>
+
+            <!-- Output Section -->
+            <div class="glass-panel p-6 rounded-2xl shadow-xl flex flex-col h-[calc(100vh-200px)] min-h-[600px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-green-400 flex items-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Result
+                    </h2>
+                    <span id="totalCostDisplay" class="text-sm font-mono bg-slate-800 px-3 py-1 rounded text-green-300 border border-green-900">Total: $0</span>
+                </div>
+                
+                <div class="relative flex-1 bg-slate-900/80 rounded-xl border border-slate-700 overflow-hidden group">
+                    <textarea id="outputText" readonly class="w-full h-full p-4 bg-transparent text-green-100 font-mono text-sm outline-none resize-none" placeholder="Result will appear here..."></textarea>
+                    
+                    <button onclick="copyOutput()" class="absolute top-4 right-4 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded border border-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Copy Code
+                    </button>
+                </div>
+                
+                <div class="mt-4">
+                    <button onclick="openDataModal()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 font-semibold text-sm transition border border-slate-600">
+                        📊 View Price Table
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Example Modal -->
+    <div id="exampleModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3 mb-4">
+                <h3 class="text-xl font-bold text-indigo-400">Syntax Guide</h3>
+                <button onclick="closeModal('exampleModal')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="space-y-4 text-sm text-slate-300">
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                    <p class="font-bold text-cyan-400 mb-2">1. Placement</p>
+                    <code class="block bg-black/30 p-2 rounded text-green-300 mb-2">place(time, "TowerName", Vector3.new(x, y, z), rot, cost)</code>
+                    <p>The tool detects the <strong>Tower Name</strong>. The cost (last argument) will be replaced.</p>
+                </div>
+                
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                    <p class="font-bold text-cyan-400 mb-2">2. Upgrades</p>
+                    <code class="block bg-black/30 p-2 rounded text-green-300 mb-2">upgrade(Index, Path, Level, cost)</code>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li><strong>Index:</strong> 1 for the 1st tower placed, 2 for the 2nd, etc.</li>
+                        <li><strong>Path:</strong> 1 = Top Path, 2 = Bottom Path.</li>
+                        <li><strong>Level:</strong> The target level (informational, tool calculates next cost automatically).</li>
+                        <li><strong>Cost:</strong> Will be replaced.</li>
+                    </ul>
+                </div>
+                
+                <button onclick="loadExample()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-white font-bold">Load Example Code</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Modal -->
+    <div id="dataModal" class="modal">
+        <div class="modal-content max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3 mb-4">
+                <h3 class="text-xl font-bold text-cyan-400">Tower Price Table</h3>
+                <button onclick="closeModal('dataModal')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <input type="text" id="searchTower" onkeyup="filterTable()" placeholder="Search tower..." class="w-full p-3 mb-4 bg-slate-800 border border-slate-600 rounded text-white focus:ring-1 focus:ring-cyan-500 outline-none">
+                <div id="priceTableContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Golden Perk Modal -->
+    <div id="goldenPerkModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3 mb-4">
+                <h3 class="text-xl font-bold text-yellow-400">Select Golden Loadout</h3>
+                <button onclick="closeModal('goldenPerkModal')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <p class="text-slate-400 text-sm mb-4">If checked, "Ranger" in script will use "Golden Ranger" prices.</p>
+            <div id="goldenCheckboxes" class="grid grid-cols-2 gap-3 mb-6">
+                <!-- Filled by JS -->
+            </div>
+            <button onclick="saveGoldenPerks()" class="w-full py-2 bg-green-600 hover:bg-green-500 rounded text-white font-bold">Apply</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const TOWER_DATA = {
+            "Jet Trooper": { place: 1175, top: [225, 700, 2000, 5250, 9750], bottom: [250, 1000, 4850, 15000, 31750] },
+            "Combat Drone": { place: 3000, top: [1800, 6500, 21000, 75000, 205000], bottom: [575, 900, 14000, 82000, 130000] },
+            "Golden Mobster": { place: 1000, top: [725, 2250, 8000, 23333, 99999], bottom: [275, 777, 22222, 44444, 135000] },
+            "AA Turret": { place: 450, top: [300, 400, 2400, 7500, 80000], bottom: [400, 1000, 15000, 28000, 105000] },
+            "Machine Gunner": { place: 1200, top: [1175, 1300, 6250, 12000, 47500], bottom: [700, 800, 10000, 16000, 72000] },
+            "Helicopter": { place: 2900, top: [2000, 5250, 15000, 57500, 220000], bottom: [1450, 1750, 14000, 17500, 74000] },
+            "XWM Turret": { place: 4850, top: [1850, 2750, 33000, 62000, 125000], bottom: [1500, 1850, 8000, 62000, 182500] },
+            "Warship": { place: 100000, top: [5000, 6800, 28000, 52000, 235000], bottom: [1000, 3200, 44000, 55000, 285000] },
+            "Golden Juggernaut": { place: 7250, top: [900, 1750, 12000, 20000, 82000], bottom: [600, 3650, 15000, 28000, 158000] },
+            "Farm": { place: 450, top: [50, 100, 3000, 9750, 12500], bottom: [775, 1250, 1850, 3250, 12750] },
+            "Shield Tower": { place: 4000, top: [1850, 2000, 13000, 27500, 175000], bottom: [1500, 2000, 16000, 65000, 120000] },
+            "Behemoth Factory": { place: 9000, top: [6500, 12000, 47500, 127500, 525000], bottom: [1850, 3000, 75000, 145000, 220000] },
+            "War Machine Factory": { place: 19000, top: [8000, 18500, 38500, 78500, 175000], bottom: [2500, 3000, 150000, 200000, 1200000] },
+            "Refractor": { place: 20000, top: [8750, 17500, 43500, 110000, 235000], bottom: [7000, 19000, 55000, 157500, 1000000] },
+            "Goo Gunner": { place: 300, top: [400, 1000, 1850, 3000, 6000], bottom: [300, 700, 1700, 3550, 6550] },
+            "Troll Tower": { place: 75, top: [5, 10, 300, 700, 1000], bottom: [75, 80, 90, 390, 1090] },
+            "Ice Breaker": { place: 625, top: [525, 1350, 2325, 6000, 33000], bottom: [625, 1150, 2500, 4825, 10825] },
+            "Cryo Helicopter": { place: 2125, top: [2000, 7500, 17250, 46800, 175000], bottom: [2125, 4125, 11625, 28875, 75675] },
+            "Relic": { place: 500, top: [300000, 300, 825, 2500, 10000], bottom: [300000, 500, 800, 1625, 4125] },
+            "Flame Trooper": { place: 1200, top: [1150, 1750, 4750, 10000, 30000], bottom: [1200, 2350, 4100, 8850, 18850] },
+            "Scarecrow": { place: 50, top: [5, 10, 15, 20, 25], bottom: [50, 55, 65, 80, 100] },
+            "Z.E.D.": { place: 5000, top: [2500, 8000, 18500, 34000, 85000], bottom: [5000, 7500, 15500, 34000, 68000] },
+            "Commander": { place: 1250, top: [500, 1500, 4300, 5500, 21000], bottom: [] }, // Commander only top provided? Assuming single path or missing data.
+            "Ranger": { place: 280, top: [165, 350, 750, 2500, 8750], bottom: [250, 425, 1400, 2400, 7250] },
+            "Shotgunner": { place: 325, top: [200, 325, 1950, 2400, 10000], bottom: [100, 375, 1150, 3000, 14000] },
+            "Operator": { place: 500, top: [125, 275, 1000, 3325, 11750], bottom: [300, 625, 1125, 2375, 10000] },
+            "Mine Layer": { place: 280, top: [220, 625, 2000, 3000, 9000], bottom: [250, 1000, 3200, 5200, 14000] },
+            "Sniper": { place: 285, top: [300, 425, 2800, 3450, 14250], bottom: [300, 1250, 2850, 4350, 17250] },
+            "Cryo Blaster": { place: 225, top: [225, 400, 1200, 2750, 7500], bottom: [450, 550, 2100, 5675, 14000] },
+            "Missile Trooper": { place: 1250, top: [1000, 350, 2000, 3250, 12500], bottom: [275, 300, 2800, 3850, 23000] },
+            "Patrol Boat": { place: 775, top: [500, 1100, 2150, 5850, 21500], bottom: [650, 950, 5250, 10000, 35000] },
+            "Grenadier": { place: 550, top: [150, 450, 1500, 3500, 12000], bottom: [350, 750, 2250, 5250, 17250] },
+            "John": { place: 300, top: [125, 450, 1400, 3250, 52500], bottom: [100, 225, 2000, 5350, 19000] },
+            "Laser Gunner": { place: 925, top: [475, 1250, 4500, 6500, 28750], bottom: [200, 525, 3700, 8000, 18000] },
+            "Sentry": { place: 250, top: [225, 450, 1200, 3175, 19000], bottom: [150, 250, 5000, 8000, 31750] },
+            "Artillery": { place: 1850, top: [550, 1000, 2000, 6500, 18500], bottom: [1200, 3000, 10250, 12000, 100000] },
+            "Shock Trooper": { place: 725, top: [700, 1525, 6825, 18750, 70000], bottom: [725, 1425, 2950, 9775, 28525] },
+            "Slammer": { place: 325, top: [225, 375, 2100, 5750, 26000], bottom: [250, 450, 1800, 3125, 12000] },
+            "Barracks": { place: 325, top: [300, 700, 1600, 3800, 30000], bottom: [125, 250, 3850, 5250, 12000] },
+            "Armored Factory": { place: 800, top: [700, 1200, 3000, 8000, 38000], bottom: [300, 400, 8500, 27000, 54000] },
+            "Toxicnator": { place: 925, top: [375, 250, 1650, 2500, 20000], bottom: [150, 425, 4250, 14000, 30000] },
+            "Golden Ranger": { place: 900, top: [500, 1100, 3750, 13500, 45000], bottom: [400, 800, 5250, 11000, 30000] },
+            "Juggernaut": { place: 6350, top: [850, 1600, 6250, 9000, 26000], bottom: [600, 3650, 7500, 14000, 60000] },
+            "Ghost": { place: 750, top: [350, 1000, 3750, 12500, 28000], bottom: [425, 925, 8000, 21000, 40000] },
+            "Medic": { place: 500, top: [400, 825, 3000, 8000, 29000], bottom: [150, 450, 2800, 9250, 28000] }
+        };
+
+        // Typos mapping just in case
+        const NAME_MAPPING = {
+            "Amored Factory": "Armored Factory"
+        };
+
+        const GOLDEN_PAIRS = {
+            "Mobster": "Golden Mobster",
+            "Juggernaut": "Golden Juggernaut",
+            "Ranger": "Golden Ranger",
+            // Add more if strictly paired in the future
+        };
+
+        let selectedGolden = new Set();
+
+        // --- MAIN LOGIC ---
+
+        function getTowerData(name) {
+            // 1. Check name directly
+            if (TOWER_DATA[name]) return { name, data: TOWER_DATA[name] };
+            
+            // 2. Check typo mapping
+            if (NAME_MAPPING[name]) {
+                const fixed = NAME_MAPPING[name];
+                if (TOWER_DATA[fixed]) return { name: fixed, data: TOWER_DATA[fixed] };
+            }
+
+            // 3. Check Golden override
+            // If selectedGolden has "Ranger" and this is "Ranger", we prefer "Golden Ranger" data if it exists
+            // BUT input might simply be "Ranger".
+            // The Golden Modal logic: User checks "Ranger". Logic checks if input is "Ranger". Swaps data.
+            if (selectedGolden.has(name) && GOLDEN_PAIRS[name]) {
+                const goldName = GOLDEN_PAIRS[name];
+                if (TOWER_DATA[goldName]) return { name: goldName, data: TOWER_DATA[goldName] };
+            }
+
+            return null;
+        }
+
+        function processCode() {
+            const input = document.getElementById('inputCode').value;
+            const lines = input.split('\n');
+            let output = "";
+            let totalCost = 0;
+
+            // State tracking: An array where index 0 = Tower 1 (id 1)
+            // Each element: { name: "Ranger", topLevel: 0, bottomLevel: 0 }
+            let towers = []; 
+
+            // Regex for Place: place(time, "Name", Vector3.new(...), rot, cost)
+            const placeRegex = /place\(\s*[^,]+,\s*"([^"]+)",\s*Vector3\.new\([^)]+\),\s*[^,]+,\s*(\d+|cost)\s*\)/i;
+            
+            // Regex for Upgrade: upgrade(Index, Path, Level, cost)
+            const upgradeRegex = /upgrade\(\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+|cost)\s*\)/i;
+
+            lines.forEach(line => {
+                let processedLine = line;
+
+                // CHECK PLACE
+                const placeMatch = line.match(placeRegex);
+                if (placeMatch) {
+                    let rawName = placeMatch[1];
+                    
+                    // Handle Loadout override
+                    if (selectedGolden.has(rawName) && GOLDEN_PAIRS[rawName]) {
+                        // We use golden pricing, but keep original name in script? 
+                        // Usually scripts prefer keeping the name clean, or changing it.
+                        // Let's just change the COST based on the golden variant.
+                        // We track it as the golden variant internally.
+                    }
+
+                    const lookup = getTowerData(rawName);
+
+                    if (lookup) {
+                        const cost = lookup.data.place;
+                        totalCost += cost;
+                        
+                        // Add to state
+                        towers.push({
+                            name: lookup.name, // Store the resolved name (e.g. "Golden Ranger")
+                            topLevel: 0,
+                            bottomLevel: 0
+                        });
+
+                        // Replace cost in string
+                        processedLine = line.replace(placeMatch[2], cost);
+                    } else {
+                        towers.push({ name: "UNKNOWN", topLevel: 0, bottomLevel: 0 }); // Placeholder to keep index sync
+                    }
+                }
+
+                // CHECK UPGRADE
+                const upgradeMatch = line.match(upgradeRegex);
+                if (upgradeMatch) {
+                    const index = parseInt(upgradeMatch[1]) - 1; // Lua 1-based to JS 0-based
+                    const path = parseInt(upgradeMatch[2]); // 1 = Top, 2 = Bottom
+                    const targetLvlArg = parseInt(upgradeMatch[3]); // Ignored for calculation, usually just informational
+                    
+                    if (towers[index] && towers[index].name !== "UNKNOWN") {
+                        const tower = towers[index];
+                        const data = TOWER_DATA[tower.name];
+                        let cost = 0;
+
+                        if (path === 1) { // TOP
+                            // Current level is topLevel. Next is topLevel + 1.
+                            // Array is 0-indexed. Level 1 cost is at index 0.
+                            const nextLvlIndex = tower.topLevel; // 0 -> Level 1 cost
+                            if (data.top && nextLvlIndex < data.top.length) {
+                                cost = data.top[nextLvlIndex];
+                                tower.topLevel++;
+                            }
+                        } else if (path === 2) { // BOTTOM
+                            const nextLvlIndex = tower.bottomLevel;
+                            if (data.bottom && nextLvlIndex < data.bottom.length) {
+                                cost = data.bottom[nextLvlIndex];
+                                tower.bottomLevel++;
+                            }
+                        }
+
+                        if (cost > 0) {
+                            totalCost += cost;
+                            processedLine = line.replace(upgradeMatch[4], cost);
+                        }
+                    }
+                }
+
+                output += processedLine + "\n";
+            });
+
+            document.getElementById('outputText').value = output;
+            document.getElementById('totalCostDisplay').textContent = `Total: $${totalCost.toLocaleString()}`;
+        }
+
+        // --- UI HELPERS ---
+
+        function copyOutput() {
+            const copyText = document.getElementById("outputText");
+            copyText.select();
+            document.execCommand("copy");
+            
+            const btn = document.querySelector("button[onclick='copyOutput()']");
+            const original = btn.innerText;
+            btn.innerText = "Copied!";
+            setTimeout(() => btn.innerText = original, 1500);
+        }
+
+        function loadExample() {
+            const example = `place(266.26, "Ranger", Vector3.new(-355, 123, -104), 0, cost)
+upgrade(1, 2, 1, cost)
+upgrade(1, 1, 1, cost)`;
+            document.getElementById('inputCode').value = example;
+            closeModal('exampleModal');
+            document.getElementById('processButton').click();
+        }
+
+        // --- DATA TABLE & MODALS ---
+
+        function openDataModal() {
+            const container = document.getElementById('priceTableContainer');
+            container.innerHTML = '';
+            
+            const keys = Object.keys(TOWER_DATA).sort();
+            
+            keys.forEach(key => {
+                const t = TOWER_DATA[key];
+                const div = document.createElement('div');
+                div.className = 'bg-slate-800 p-4 rounded-lg border border-slate-700 tower-card';
+                div.setAttribute('data-name', key.toLowerCase());
+                
+                let topHtml = t.top ? t.top.map((c, i) => `<span class="text-xs text-slate-400">L${i+1}:</span> <span class="text-cyan-300">$${c}</span>`).join('<br>') : 'N/A';
+                let botHtml = t.bottom ? t.bottom.map((c, i) => `<span class="text-xs text-slate-400">L${i+1}:</span> <span class="text-cyan-300">$${c}</span>`).join('<br>') : 'N/A';
+
+                div.innerHTML = `
+                    <div class="flex justify-between border-b border-slate-600 pb-2 mb-2">
+                        <strong class="text-green-400">${key}</strong>
+                        <span class="text-white font-mono">Plc: $${t.place}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="bg-slate-900/50 p-2 rounded">
+                            <div class="text-xs font-bold text-yellow-500 mb-1">TOP PATH</div>
+                            ${topHtml}
+                        </div>
+                        <div class="bg-slate-900/50 p-2 rounded">
+                            <div class="text-xs font-bold text-yellow-500 mb-1">BOT PATH</div>
+                            ${botHtml}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            document.getElementById('dataModal').style.display = 'block';
+        }
+
+        function filterTable() {
+            const term = document.getElementById('searchTower').value.toLowerCase();
+            const cards = document.querySelectorAll('.tower-card');
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name');
+                card.style.display = name.includes(term) ? 'block' : 'none';
+            });
+        }
+
+        function openGoldenPerkModal() {
+            const container = document.getElementById('goldenCheckboxes');
+            container.innerHTML = '';
+            
+            Object.keys(GOLDEN_PAIRS).forEach(baseName => {
+                const goldName = GOLDEN_PAIRS[baseName];
+                const isChecked = selectedGolden.has(baseName);
+                
+                const div = document.createElement('label');
+                div.className = 'flex items-center p-3 bg-slate-800 rounded border border-slate-700 cursor-pointer hover:bg-slate-700';
+                div.innerHTML = `
+                    <input type="checkbox" value="${baseName}" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-yellow-600 bg-slate-900 border-slate-600 rounded focus:ring-yellow-500">
+                    <div class="ml-3">
+                        <span class="block text-sm font-medium text-white">${baseName}</span>
+                        <span class="block text-xs text-yellow-500">Uses ${goldName} prices</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            document.getElementById('goldenPerkModal').style.display = 'block';
+        }
+
+        function saveGoldenPerks() {
+            selectedGolden.clear();
+            const checkboxes = document.querySelectorAll('#goldenCheckboxes input:checked');
+            checkboxes.forEach(cb => selectedGolden.add(cb.value));
+            
+            closeModal('goldenPerkModal');
+            // Auto re-process if code exists
+            if (document.getElementById('inputCode').value.trim()) {
+                processCode();
+            }
+        }
+
+        function openExampleModal() {
+            document.getElementById('exampleModal').style.display = 'block';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Close modals on click outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = "none";
+            }
+        }
+
+        // Init
+        document.getElementById('processButton').addEventListener('click', processCode);
+    </script>
+</body>
+</html>
+
